@@ -1,0 +1,83 @@
+name: Telegram Inbox (replies)
+
+# Polls Telegram every 30 min for your replies. Parses them:
+#   "apti <n>"   -> adds n aptitude questions to today's count
+#   "status"     -> bot replies with your current numbers
+#   anything else-> saved to INBOX.md for your next AI (Claude/Gemini) session
+# No always-on server needed; this is cron-polling. Latency = up to ~30 min.
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repo-writer        # shared with tracker.yml so they never push at once
+  cancel-in-progress: false
+
+jobs:
+  inbox:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Poll and process replies
+        env:
+          TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          CHAT:  ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          OFFSET=$(cat tg_offset.txt 2>/dev/null || echo 0)
+          RESP=$(curl -s "https://api.telegram.org/bot${TOKEN}/getUpdates?offset=${OFFSET}&timeout=0")
+          [ "$(echo "$RESP" | jq -r '.ok')" = "true" ] || { echo "tg error: $RESP"; exit 0; }
+          N=$(echo "$RESP" | jq '.result | length')
+          [ "$N" -eq 0 ] && { echo "no new messages"; exit 0; }
+
+          TODAY=$(TZ=Asia/Kolkata date +%F)
+          A_DATE=$(jq -r '.date // ""'  apti.json 2>/dev/null || echo "")
+          A_TODAY=$(jq -r '.today // 0' apti.json 2>/dev/null || echo 0)
+          A_TOTAL=$(jq -r '.total // 0' apti.json 2>/dev/null || echo 0)
+          [ "$A_DATE" != "$TODAY" ] && { A_TODAY=0; A_DATE="$TODAY"; }
+
+          LASTID=0
+          while read -r u; do
+            UID=$(echo "$u" | jq -r '.update_id'); LASTID=$UID
+            TEXT=$(echo "$u" | jq -r '.message.text // empty')
+            [ -z "$TEXT" ] && continue
+            LOW=$(echo "$TEXT" | tr '[:upper:]' '[:lower:]' | xargs)
+            case "$LOW" in
+              apti*)
+                NUM=$(echo "$LOW" | grep -oE '[0-9]+' | head -1)
+                if [ -n "$NUM" ]; then
+                  A_TODAY=$((A_TODAY + NUM)); A_TOTAL=$((A_TOTAL + NUM))
+                  curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d chat_id="${CHAT}" \
+                    --data-urlencode "text=✅ Logged ${NUM} aptitude Qs. Today: ${A_TODAY} · Total: ${A_TOTAL}."
+                fi
+                ;;
+              status)
+                S=$(cat status.txt 2>/dev/null || echo "No DSA stats yet.")
+                OUT=$(printf '%s\nApti today: %s · total %s' "$S" "$A_TODAY" "$A_TOTAL")
+                curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d chat_id="${CHAT}" \
+                  --data-urlencode "text=${OUT}"
+                ;;
+              *)
+                printf -- '- [%s IST] %s\n' "$(TZ=Asia/Kolkata date '+%Y-%m-%d %H:%M')" "$TEXT" >> INBOX.md
+                curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d chat_id="${CHAT}" \
+                  --data-urlencode "text=📝 Saved to INBOX.md for your next AI session."
+                ;;
+            esac
+          done < <(echo "$RESP" | jq -c '.result[]')
+
+          # Confirm to Telegram so these updates are never resent (robust even if git fails)
+          curl -s "https://api.telegram.org/bot${TOKEN}/getUpdates?offset=$((LASTID + 1))&timeout=0" >/dev/null
+
+          printf '{"date":"%s","today":%s,"total":%s}\n' "$A_DATE" "$A_TODAY" "$A_TOTAL" > apti.json
+          echo $((LASTID + 1)) > tg_offset.txt
+
+          git config user.name  "dsa-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add apti.json tg_offset.txt INBOX.md
+          git commit -m "inbox: $(TZ=Asia/Kolkata date '+%Y-%m-%d %H:%M')" || { echo "nothing to commit"; exit 0; }
+          git pull --rebase --autostash || true
+          git push

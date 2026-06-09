@@ -1,0 +1,82 @@
+name: DSA Reminder
+
+# Cloud scheduler — runs on GitHub's servers, independent of your Mac.
+# Times are UTC = your IST minus 5h30m. Cron may drift 5-15 min (fine for nudges).
+
+on:
+  schedule:
+    - cron: '30 2 * * *'    # 08:00 IST — morning PRIME (DSA)
+    - cron: '30 7 * * *'    # 13:00 IST — college (APTITUDE)
+    - cron: '30 12 * * *'   # 18:00 IST — back at hostel (weekday-aware focus)
+    - cron: '30 16 * * *'   # 22:00 IST — night GRIND (DSA)
+    - cron: '0 18 * * *'    # 23:30 IST — day-end debt check
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Send Telegram reminder
+        env:
+          TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          CHAT:  ${{ secrets.TELEGRAM_CHAT_ID }}
+          SCHED: ${{ github.event.schedule }}
+        run: |
+          STATUS="$(cat status.txt 2>/dev/null || true)"
+          TD=$(TZ=Asia/Kolkata date +%F)
+          ATODAY=$(jq -r --arg d "$TD" 'if (.date==$d) then .today else 0 end' apti.json 2>/dev/null || echo 0)
+          [ -z "$ATODAY" ] && ATODAY=0
+          DOW=$(TZ=Asia/Kolkata date +%u)
+          FOOT="Phase 1 · Foundation · target: tailored profile by mid-Aug · log apti by replying 'apti <n>'"
+          case "$SCHED" in
+            "30 2 * * *")
+              MSG=$(printf '%s\n%s\n%s' \
+                "☀️ MORNING PRIME (4h) — your freshest brain." \
+                "Do the hardest NEW thing now: the next pattern in DSA/patterns. Quota today: 6 problems." \
+                "Start ONE problem before you feel ready. Starting is the only hard part.")
+              ;;
+            "30 7 * * *")
+              MSG=$(printf '%s\n%s\n%s' \
+                "🎒 COLLEGE — 2-3h APTITUDE in the gaps (your daily aptitude block)." \
+                "Reply 'apti <n>' as you go so it gets tracked (e.g. apti 25)." \
+                "And DON'T nap this evening — that's how the day dies.")
+              ;;
+            "30 12 * * *")
+              case "$DOW" in
+                1|3) FOCUS="📄 RESUME night: 15 min — tailor 2 bullets to backend/scale (resume/notes.md), then easy DSA." ;;
+                2|4) FOCUS="🛠️ PROJECT night: 30 min polishing ONE project (README, demo, cleanup), then easy DSA." ;;
+                5)   FOCUS="🔁 REVIEW night: redo 2 problems you struggled with this week. Name your weakest pattern." ;;
+                6)   FOCUS="🧹 CATCH-UP: clear any DEBT today before it rolls into Sunday." ;;
+                7)   FOCUS="🧪 SUNDAY: 1 timed mock (2 mediums / 45 min) + plan next week in SCHEDULE.md." ;;
+                *)   FOCUS="Light block: easy problems + a little resume/project." ;;
+              esac
+              MSG=$(printf '%s\n%s\n%s' \
+                "🔁 BACK AT HOSTEL — light block (2h)." \
+                "$FOCUS" \
+                "One problem beats zero. Don't nap.")
+              ;;
+            "30 16 * * *")
+              MSG=$(printf '%s\n%s' \
+                "🌙 NIGHT GRIND (4h) — your zone. You don't get tired on real problems." \
+                "Solve + implement toward today's 6. Push the count.")
+              ;;
+            "0 18 * * *")
+              MSG=$(printf '%s\n%s\n%s' \
+                "📊 DAY'S END — honesty check. Apti logged today: ${ATODAY}." \
+                "Hit your 6 DSA? Update TRACKER.md. Unpaid quota becomes DEBT tomorrow." \
+                "Reply 'apti <n>' for any aptitude you haven't logged. Bot tallies LeetCode at 23:50.")
+              ;;
+            *)
+              MSG="✅ Manual check-in. Reply 'status' anytime for your numbers; 'apti <n>' to log aptitude."
+              ;;
+          esac
+          FULL="$MSG"
+          [ -n "$STATUS" ] && FULL=$(printf '%s\n\n%s' "$MSG" "$STATUS")
+          FULL=$(printf '%s\n\n— %s' "$FULL" "$FOOT")
+          curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
+            -d chat_id="${CHAT}" \
+            --data-urlencode "text=${FULL}"
