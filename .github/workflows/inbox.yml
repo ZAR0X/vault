@@ -42,7 +42,7 @@ jobs:
 
           LASTID=0
           while read -r u; do
-            UID=$(echo "$u" | jq -r '.update_id'); LASTID=$UID
+            UPDATE_ID=$(echo "$u" | jq -r '.update_id'); LASTID=$UPDATE_ID
             TEXT=$(echo "$u" | jq -r '.message.text // empty')
             [ -z "$TEXT" ] && continue
             LOW=$(echo "$TEXT" | tr '[:upper:]' '[:lower:]' | xargs)
