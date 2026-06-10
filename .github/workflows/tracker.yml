@@ -65,8 +65,8 @@ jobs:
             awk -v line="$LINE" '/<!--LOG-END-->/{print line} {print}' TRACKER.md > TRACKER.tmp && mv TRACKER.tmp TRACKER.md
           fi
 
-          git config user.name  "dsa-bot"
-          git config user.email "bot@users.noreply.github.com"
+          git config user.name  "ZAR0X"
+          git config user.email "mineiszarox@gmail.com"
           git add state.json status.txt TRACKER.md
           git commit -m "auto: $TODAY dsa=$SOLVED debt=$DEBT streak=$STREAK apti=$ATODAY" || { echo "nothing to commit"; exit 0; }
           git pull --rebase --autostash || true

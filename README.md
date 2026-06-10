@@ -1,15 +1,21 @@
-# Interview Prep — Command Center
+# Vault
 
-Ram's road to a product-based / funded-startup internship → FAANG. DSA practice lives in `../DSA/`; everything else lives here.
+A serverless, event-driven architecture designed for autonomous workload tracking, state management, and productivity orchestration. 
 
-## Files
-- **TRACKER.md** — the pressure engine. Daily quota, streak, debt. **Open this FIRST, every session.**
-- **SCHEDULE.md** — the exam-aware 3-phase plan (Foundation → July exam dip → Depth + Apply).
-- **profiles.md** — your platform handles + target companies (fill in).
-- **resume/notes.md** — tailoring strategy + what to lead with.
-- **behavioral/stories.md** — STAR stories from CatUserBot + hackathons.
-- **system-design/notes.md** — parked for Phase 3 (August).
-- **applications/log.md** — every company applied + status.
+## Overview
+Vault acts as a centralized command center that orchestrates automated data aggregation, debt calculation, and schedule management without requiring a dedicated always-on server. It leverages GitHub Actions as a compute layer to interface with external APIs and handles bi-directional communication via a Telegram bot interface.
 
-## The deal (you asked for this)
-**Hard quota + visible debt.** Hit the daily minimum or it rolls forward and accumulates where you can see it. I check it every session and tell you the truth — no flattery. Pressure is your performance mode; this is how we keep it switched on.
+## System Architecture
+
+- **State Management Engine**: Tracks daily throughput quotas, dynamically calculates rolling "technical debt," and maintains historical logs securely via Git version control.
+- **Serverless Cron Aggregator**: Automated cloud-side pipelines trigger dynamically to pull, parse, and aggregate external workload metrics (via GraphQL endpoints), committing state transitions automatically.
+- **Asynchronous Communication Layer**: Uses a lightweight polling mechanism to parse structured commands from a Telegram client, enabling remote state mutations and asynchronous task logging on the go.
+- **Agentic Context Environment**: Maintains structured, human-readable state files optimized for LLM parsing, allowing autonomous AI agents to seamlessly inherit the system state and act as orchestrators.
+
+## Technical Stack
+- **Compute**: GitHub Actions (Ubuntu environments)
+- **Data Parsing**: `jq`, `awk`, POSIX shell scripting
+- **Integrations**: GraphQL APIs, Telegram Bot API, Git
+- **State Storage**: Git-backed JSON logs and dynamic Markdown files
+
+> **Note**: This repository contains active, self-updating CI/CD pipelines. Automated commits are generated autonomously by the orchestration engine to log state transitions.
