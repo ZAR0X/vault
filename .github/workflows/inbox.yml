@@ -51,20 +51,21 @@ jobs:
                 NUM=$(echo "$LOW" | grep -oE '[0-9]+' | head -1)
                 if [ -n "$NUM" ]; then
                   A_TODAY=$((A_TODAY + NUM)); A_TOTAL=$((A_TOTAL + NUM))
-                  curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d chat_id="${CHAT}" \
-                    --data-urlencode "text=✅ Logged ${NUM} aptitude Qs. Today: ${A_TODAY} · Total: ${A_TOTAL}."
+                  curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d chat_id="${CHAT}" -d parse_mode="HTML" \
+                    --data-urlencode "text=✅ <b>Logged ${NUM} aptitude Qs.</b>
+Today: <b>${A_TODAY}</b> | Total: <b>${A_TOTAL}</b>"
                 fi
                 ;;
               status)
                 S=$(cat status.txt 2>/dev/null || echo "No DSA stats yet.")
-                OUT=$(printf '%s\nApti today: %s · total %s' "$S" "$A_TODAY" "$A_TOTAL")
-                curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d chat_id="${CHAT}" \
+                OUT=$(printf '<b>%s</b>\nApti today: <b>%s</b> | Total: <b>%s</b>' "$S" "$A_TODAY" "$A_TOTAL")
+                curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d chat_id="${CHAT}" -d parse_mode="HTML" \
                   --data-urlencode "text=${OUT}"
                 ;;
               *)
                 printf -- '- [%s IST] %s\n' "$(TZ=Asia/Kolkata date '+%Y-%m-%d %H:%M')" "$TEXT" >> INBOX.md
-                curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d chat_id="${CHAT}" \
-                  --data-urlencode "text=📝 Saved to INBOX.md for your next AI session."
+                curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d chat_id="${CHAT}" -d parse_mode="HTML" \
+                  --data-urlencode "text=📝 <i>Saved to INBOX.md for your next AI session.</i>"
                 ;;
             esac
           done < <(echo "$RESP" | jq -c '.result[]')

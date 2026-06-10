@@ -1,15 +1,20 @@
 name: DSA Reminder
 
-# Cloud scheduler — runs on GitHub's servers, independent of your Mac.
-# Times are UTC = your IST minus 5h30m. Cron may drift 5-15 min (fine for nudges).
+# Cloud scheduler — runs on GitHub's servers.
+# To avoid exact-hour queue delays on GitHub Actions, cron times are set slightly early.
+# 08:00 IST = 02:30 UTC -> we use 23 2
+# 14:00 IST = 08:30 UTC -> we use 23 8
+# 18:00 IST = 12:30 UTC -> we use 23 12
+# 22:00 IST = 16:30 UTC -> we use 23 16
+# 23:30 IST = 18:00 UTC -> we use 53 17
 
 on:
   schedule:
-    - cron: '30 2 * * *'    # 08:00 IST — morning PRIME (DSA)
-    - cron: '30 8 * * *'    # 14:00 IST — college (APTITUDE)
-    - cron: '30 12 * * *'   # 18:00 IST — back at hostel (weekday-aware focus)
-    - cron: '30 16 * * *'   # 22:00 IST — night GRIND (DSA)
-    - cron: '0 18 * * *'    # 23:30 IST — day-end debt check
+    - cron: '23 2 * * *'
+    - cron: '23 8 * * *'
+    - cron: '23 12 * * *'
+    - cron: '23 16 * * *'
+    - cron: '53 17 * * *'
   workflow_dispatch:
 
 permissions:
@@ -26,57 +31,86 @@ jobs:
           CHAT:  ${{ secrets.TELEGRAM_CHAT_ID }}
           SCHED: ${{ github.event.schedule }}
         run: |
-          STATUS="$(cat status.txt 2>/dev/null || true)"
+          # Read tracking state to show debt and stats dynamically
+          DEBT=0; STREAK=0; LC_TOTAL=0
+          if [ -f state.json ]; then
+            DEBT=$(jq -r '.debt // 0' state.json)
+            STREAK=$(jq -r '.streak // 0' state.json)
+            LC_TOTAL=$(jq -r '.last_total // 0' state.json)
+          fi
+          
           TD=$(TZ=Asia/Kolkata date +%F)
           ATODAY=$(jq -r --arg d "$TD" 'if (.date==$d) then .today else 0 end' apti.json 2>/dev/null || echo 0)
           [ -z "$ATODAY" ] && ATODAY=0
+          
+          # Compute today's quota
           DOW=$(TZ=Asia/Kolkata date +%u)
-          FOOT="Phase 1 · Foundation · target: tailored profile by mid-Aug · log apti by replying 'apti <n>'"
+          QUOTA=6; [ "$DOW" = "7" ] && QUOTA=12
+          
+          DEBT_STR="<b>Debt:</b> $DEBT problems"
+          if [ "$DEBT" -gt 0 ]; then
+            DEBT_STR="🔴 <b>DEBT: $DEBT problems</b> (Clear this first!)"
+          else
+            DEBT_STR="🟢 <b>No Debt!</b>"
+          fi
+          
+          # Status block
+          STATUS_BLOCK="📊 <b>Status:</b> ${STREAK}d Streak | Quota: ${QUOTA} | ${DEBT_STR} | Apti Today: ${ATODAY}"
+
           case "$SCHED" in
-            "30 2 * * *")
-              MSG=$(printf '%s\n%s\n%s' \
-                "☀️ MORNING PRIME (4h) — your freshest brain." \
-                "Do the hardest NEW thing now: the next pattern in dsa/patterns. Quota today: 6 problems." \
-                "Start ONE problem before you feel ready. Starting is the only hard part.")
+            "23 2 "*|*" 2 "*|*" 3 "*)
+              MSG="☀️ <b>MORNING PRIME (4h)</b>
+<i>Your freshest brain.</i>
+
+Do the hardest NEW thing now: the next pattern in dsa/patterns.
+Start ONE problem before you feel ready. Starting is the only hard part."
               ;;
-            "30 8 * * *")
-              MSG=$(printf '%s\n%s\n%s' \
-                "🎒 COLLEGE — 2-3h APTITUDE in the gaps." \
-                "Reply 'apti <n>' as you go so it gets tracked (e.g. apti 25)." \
-                "And DON'T nap this evening — that's how the day dies.")
+            "23 8 "*|*" 8 "*|*" 7 "*)
+              MSG="🎒 <b>COLLEGE — 2-3h APTITUDE</b>
+<i>Your daily aptitude block.</i>
+
+Reply <code>apti 10</code> as you go so it gets tracked.
+And DON'T nap this evening — that's how the day dies."
               ;;
-            "30 12 * * *")
+            "23 12 "*|*" 12 "*|*" 13 "*)
               case "$DOW" in
-                1|3) FOCUS="📄 RESUME night: 15 min — tailor 2 bullets to backend/scale (resume/notes.md), then easy DSA." ;;
-                2|4) FOCUS="🛠️ PROJECT night: 30 min polishing ONE project (README, demo, cleanup), then easy DSA." ;;
-                5)   FOCUS="🔁 REVIEW night: redo 2 problems you struggled with this week. Name your weakest pattern." ;;
-                6)   FOCUS="🧹 CATCH-UP: clear any DEBT today before it rolls into Sunday." ;;
-                7)   FOCUS="🧪 SUNDAY: 1 timed mock (2 mediums / 45 min) + plan next week in SCHEDULE.md." ;;
-                *)   FOCUS="Light block: easy problems + a little resume/project." ;;
+                1|3) FOCUS="📄 <b>RESUME night:</b> 15 min — tailor 2 bullets to backend/scale, then easy DSA." ;;
+                2|4) FOCUS="🛠️ <b>PROJECT night:</b> 30 min polishing ONE project (README, demo), then easy DSA." ;;
+                5)   FOCUS="🔁 <b>REVIEW night:</b> redo 2 problems you struggled with this week." ;;
+                6)   FOCUS="🧹 <b>CATCH-UP:</b> clear any DEBT today before it rolls into Sunday." ;;
+                7)   FOCUS="🧪 <b>SUNDAY:</b> 1 timed mock (2 mediums / 45 min) + plan next week." ;;
+                *)   FOCUS="<b>Light block:</b> easy problems + a little resume/project." ;;
               esac
-              MSG=$(printf '%s\n%s\n%s' \
-                "🔁 BACK AT HOSTEL — light block (2h)." \
-                "$FOCUS" \
-                "One problem beats zero. Don't nap.")
+              MSG="🏠 <b>BACK AT HOSTEL — light block (2h)</b>
+
+$FOCUS
+One problem beats zero. Don't nap."
               ;;
-            "30 16 * * *")
-              MSG=$(printf '%s\n%s' \
-                "🌙 NIGHT GRIND (4h) — your zone. You don't get tired on real problems." \
-                "Solve + implement toward today's 6. Push the count.")
+            "23 16 "*|*" 16 "*|*" 17 "*)
+              MSG="🌙 <b>NIGHT GRIND (4h)</b>
+<i>Your zone. You don't get tired on real problems.</i>
+
+Solve + implement toward today's quota. Push the count."
               ;;
-            "0 18 * * *")
-              MSG=$(printf '%s\n%s\n%s' \
-                "📊 DAY'S END — honesty check. Apti logged today: ${ATODAY}." \
-                "Hit your 6 DSA? Update TRACKER.md. Unpaid quota becomes DEBT tomorrow." \
-                "Reply 'apti <n>' for any aptitude you haven't logged. Bot tallies LeetCode at 23:50.")
+            "53 17 "*|*" 18 "*)
+              MSG="🛑 <b>DAY'S END — honesty check</b>
+
+Hit your DSA quota? Update TRACKER.md. Unpaid quota becomes DEBT tomorrow.
+Reply <code>apti &lt;n&gt;</code> for any aptitude you haven't logged. Bot tallies LeetCode at 23:50."
               ;;
             *)
-              MSG="✅ Manual check-in. Reply 'status' anytime for your numbers; 'apti <n>' to log aptitude."
+              MSG="✅ <b>Manual Check-in</b>
+Reply <code>status</code> anytime for your numbers, or <code>apti &lt;n&gt;</code> to log aptitude."
               ;;
           esac
-          FULL="$MSG"
-          [ -n "$STATUS" ] && FULL=$(printf '%s\n\n%s' "$MSG" "$STATUS")
-          FULL=$(printf '%s\n\n— %s' "$FULL" "$FOOT")
+
+          FULL="${MSG}
+
+${STATUS_BLOCK}
+
+<i>Phase 1 · Foundation · target: mid-Aug</i>"
+
           curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
             -d chat_id="${CHAT}" \
-            --data-urlencode "text=${FULL}"
+            -d parse_mode="HTML" \
+            --data-urlencode text="$FULL"
