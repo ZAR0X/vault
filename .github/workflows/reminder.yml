@@ -59,18 +59,10 @@ jobs:
 
           case "$SCHED" in
             "23 2 "*|*" 2 "*|*" 3 "*)
-              MSG="☀️ <b>MORNING PRIME (4h)</b>
-<i>Your freshest brain.</i>
-
-Do the hardest NEW thing now: the next pattern in dsa/patterns.
-Start ONE problem before you feel ready. Starting is the only hard part."
+              MSG=$(printf '%b' "☀️ <b>MORNING PRIME (4h)</b>\n<i>Your freshest brain.</i>\n\nDo the hardest NEW thing now: the next pattern in dsa/patterns.\nStart ONE problem before you feel ready. Starting is the only hard part.")
               ;;
             "23 8 "*|*" 8 "*|*" 7 "*)
-              MSG="🎒 <b>COLLEGE — 2-3h APTITUDE</b>
-<i>Your daily aptitude block.</i>
-
-Reply <code>apti 10</code> as you go so it gets tracked.
-And DON'T nap this evening — that's how the day dies."
+              MSG=$(printf '%b' "🎒 <b>COLLEGE — 2-3h APTITUDE</b>\n<i>Your daily aptitude block.</i>\n\nReply <code>apti 10</code> as you go so it gets tracked.\nAnd DON'T nap this evening — that's how the day dies.")
               ;;
             "23 12 "*|*" 12 "*|*" 13 "*)
               case "$DOW" in
@@ -81,34 +73,20 @@ And DON'T nap this evening — that's how the day dies."
                 7)   FOCUS="🧪 <b>SUNDAY:</b> 1 timed mock (2 mediums / 45 min) + plan next week." ;;
                 *)   FOCUS="<b>Light block:</b> easy problems + a little resume/project." ;;
               esac
-              MSG="🏠 <b>BACK AT HOSTEL — light block (2h)</b>
-
-$FOCUS
-One problem beats zero. Don't nap."
+              MSG=$(printf '%b' "🏠 <b>BACK AT HOSTEL — light block (2h)</b>\n\n${FOCUS}\nOne problem beats zero. Don't nap.")
               ;;
             "23 16 "*|*" 16 "*|*" 17 "*)
-              MSG="🌙 <b>NIGHT GRIND (4h)</b>
-<i>Your zone. You don't get tired on real problems.</i>
-
-Solve + implement toward today's quota. Push the count."
+              MSG=$(printf '%b' "🌙 <b>NIGHT GRIND (4h)</b>\n<i>Your zone. You don't get tired on real problems.</i>\n\nSolve + implement toward today's quota. Push the count.")
               ;;
             "53 17 "*|*" 18 "*)
-              MSG="🛑 <b>DAY'S END — honesty check</b>
-
-Hit your DSA quota? Update TRACKER.md. Unpaid quota becomes DEBT tomorrow.
-Reply <code>apti &lt;n&gt;</code> for any aptitude you haven't logged. Bot tallies LeetCode at 23:50."
+              MSG=$(printf '%b' "🛑 <b>DAY'S END — honesty check</b>\n\nHit your DSA quota? Update TRACKER.md. Unpaid quota becomes DEBT tomorrow.\nReply <code>apti &lt;n&gt;</code> for any aptitude you haven't logged. Bot tallies LeetCode at 23:50.")
               ;;
             *)
-              MSG="✅ <b>Manual Check-in</b>
-Reply <code>status</code> anytime for your numbers, or <code>apti &lt;n&gt;</code> to log aptitude."
+              MSG=$(printf '%b' "✅ <b>Manual Check-in</b>\nReply <code>status</code> anytime for your numbers, or <code>apti &lt;n&gt;</code> to log aptitude.")
               ;;
           esac
 
-          FULL="${MSG}
-
-${STATUS_BLOCK}
-
-<i>Phase 1 · Foundation · target: mid-Aug</i>"
+          FULL=$(printf '%b' "${MSG}\n\n${STATUS_BLOCK}\n\n<i>Phase 1 · Foundation · target: mid-Aug</i>")
 
           curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
             -d chat_id="${CHAT}" \

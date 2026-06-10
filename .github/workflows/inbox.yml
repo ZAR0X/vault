@@ -51,9 +51,9 @@ jobs:
                 NUM=$(echo "$LOW" | grep -oE '[0-9]+' | head -1)
                 if [ -n "$NUM" ]; then
                   A_TODAY=$((A_TODAY + NUM)); A_TOTAL=$((A_TOTAL + NUM))
+                  TEXT_MSG=$(printf '%b' "✅ <b>Logged ${NUM} aptitude Qs.</b>\nToday: <b>${A_TODAY}</b> | Total: <b>${A_TOTAL}</b>")
                   curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d chat_id="${CHAT}" -d parse_mode="HTML" \
-                    --data-urlencode "text=✅ <b>Logged ${NUM} aptitude Qs.</b>
-Today: <b>${A_TODAY}</b> | Total: <b>${A_TOTAL}</b>"
+                    --data-urlencode "text=${TEXT_MSG}"
                 fi
                 ;;
               status)
