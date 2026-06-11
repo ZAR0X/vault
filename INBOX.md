@@ -21,3 +21,5 @@ and this
 - [2026-06-10 19:51 IST] get the whole class from
 https://github.com/Vauth/somnium/blob/567266643973a3d318d96c9fe1e360ddf6b0d3da/worker.js#L52
 - [2026-06-11 14:29 IST] @Zarox any tips?
+- [2026-06-12 01:04 IST] user?
+- [2026-06-12 01:04 IST] cry for help email to huggingface 😂
